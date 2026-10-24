@@ -5,7 +5,8 @@
 set -eo pipefail
 
 # 配置
-NVIM_VERSION="0.10.2"  # Neovim 版本
+NVIM_VERSION="0.12.6"  # Neovim 版本
+REPO_URL="https://github.com/YuvbMowh/neovimsh.git"  # 配置仓库
 NVIM_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
 BACKUP_DIR="$HOME/.config/nvim.backup.$(date +%Y%m%d-%H%M%S)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -252,9 +253,32 @@ install_config() {
         log_info "从本地复制配置..."
         cp -r "$SCRIPT_DIR/nvim" "$NVIM_CONFIG_DIR"
     else
-        log_error "找不到配置文件目录：$SCRIPT_DIR/nvim"
-        log_info "请确保从正确的仓库克隆或下载完整项目"
-        exit 1
+        log_info "本地配置不存在，从 GitHub 克隆..."
+        
+        # 创建临时目录
+        local temp_dir
+        temp_dir=$(mktemp -d)
+        
+        log_info "克隆配置仓库..."
+        if git clone --depth 1 "$REPO_URL" "$temp_dir" 2>&1; then
+            if [[ -d "$temp_dir/nvim" ]]; then
+                cp -r "$temp_dir/nvim" "$NVIM_CONFIG_DIR"
+                rm -rf "$temp_dir"
+                log_success "配置已从仓库克隆"
+            else
+                log_error "仓库中找不到 nvim 配置目录"
+                rm -rf "$temp_dir"
+                exit 1
+            fi
+        else
+            log_error "克隆仓库失败"
+            log_info "请检查网络连接或手动克隆："
+            log_info "  git clone $REPO_URL"
+            log_info "  cd neovimsh"
+            log_info "  ./install.sh"
+            rm -rf "$temp_dir"
+            exit 1
+        fi
     fi
     
     log_success "LazyVim 配置已安装"

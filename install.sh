@@ -218,6 +218,12 @@ install_neovim() {
         export PATH="$HOME/.local/bin:$PATH"
     fi
     
+    # 添加 n 别名
+    if ! grep -q "alias n='nvim'" "$HOME/.bashrc" 2>/dev/null; then
+        log_info "添加 n=nvim 别名到 ~/.bashrc..."
+        echo "alias n='nvim'" >> "$HOME/.bashrc"
+    fi
+    
     # 验证安装
     if "$HOME/.local/bin/nvim" --version &> /dev/null; then
         log_success "Neovim 安装成功"
@@ -375,6 +381,8 @@ print_summary() {
     echo "接下来："
     echo "  1. 启动 Neovim："
     echo "     $ nvim"
+    echo "     或者使用快捷别名："
+    echo "     $ n"
     echo
     echo "  2. LazyVim 快捷键："
     echo "     <Space>      - 打开 which-key（查看所有快捷键）"
@@ -398,7 +406,11 @@ print_summary() {
     fi
     
     if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-        echo -e "${YELLOW}注意：${NC}请重启终端或执行以下命令使 PATH 生效："
+        echo -e "${YELLOW}注意：${NC}请重启终端或执行以下命令使 PATH 和别名生效："
+        echo "  source ~/.bashrc"
+        echo
+    else
+        echo -e "${YELLOW}提示：${NC}如果 'n' 别名不可用，请运行："
         echo "  source ~/.bashrc"
         echo
     fi

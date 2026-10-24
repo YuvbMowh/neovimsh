@@ -34,6 +34,14 @@ cd neovimsh
 
 ```bash
 nvim
+
+# 或使用快捷别名
+n
+```
+
+**注意**：首次使用别名需要重新加载 shell：
+```bash
+source ~/.bashrc
 ```
 
 ### 选项

@@ -122,7 +122,10 @@ check_neovim() {
         if [[ "$current_version" == "$NVIM_VERSION" ]]; then
             log_success "Neovim 版本匹配"
             return 0
-        elif [[ "$FORCE_INSTALL" == "false" ]]; then
+        elif [[ "$FORCE_INSTALL" == "true" ]]; then
+            log_warn "版本不匹配（期望：$NVIM_VERSION），强制重新安装..."
+            return 1
+        else
             log_warn "版本不匹配（期望：$NVIM_VERSION）"
             read -p "是否重新安装 Neovim $NVIM_VERSION？(y/N) " -n 1 -r
             echo
@@ -255,18 +258,30 @@ backup_existing_config() {
     if [[ -d "$NVIM_CONFIG_DIR" ]] || [[ -L "$NVIM_CONFIG_DIR" ]]; then
         log_warn "检测到现有 Neovim 配置"
         
-        if [[ "$FORCE_INSTALL" == "false" ]]; then
+        if [[ "$FORCE_INSTALL" == "true" ]]; then
+            log_info "强制模式：自动备份并覆盖现有配置..."
+            mv "$NVIM_CONFIG_DIR" "$BACKUP_DIR"
+            log_success "配置已备份到 $BACKUP_DIR"
+        else
             read -p "是否备份现有配置？(Y/n) " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Nn]$ ]]; then
                 log_info "跳过备份"
-                return 0
+                read -p "是否直接删除现有配置？(y/N) " -n 1 -r
+                echo
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    rm -rf "$NVIM_CONFIG_DIR"
+                    log_info "已删除现有配置"
+                else
+                    log_error "无法继续：配置目录已存在"
+                    exit 1
+                fi
+            else
+                log_info "备份现有配置到 $BACKUP_DIR..."
+                mv "$NVIM_CONFIG_DIR" "$BACKUP_DIR"
+                log_success "配置已备份"
             fi
         fi
-        
-        log_info "备份现有配置到 $BACKUP_DIR..."
-        mv "$NVIM_CONFIG_DIR" "$BACKUP_DIR"
-        log_success "配置已备份"
     fi
 }
 

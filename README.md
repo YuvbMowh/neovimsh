@@ -246,6 +246,37 @@ return {
 - **添加自动命令**: 编辑 `lua/config/autocmds.lua`
 - **添加/修改插件**: 在 `lua/plugins/` 目录下创建新文件
 
+### 更新配置
+
+```bash
+# 拉取最新配置
+cd neovimsh
+git pull
+
+# 强制覆盖安装
+./install.sh --force
+```
+
+### 卸载
+
+**一键卸载：**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/YuvbMowh/neovimsh/master/uninstall.sh | bash
+```
+
+**或者手动卸载：**
+
+```bash
+rm -rf ~/.config/nvim
+rm -rf ~/.local/share/nvim
+rm -rf ~/.local/state/nvim
+rm -rf ~/.cache/nvim
+rm ~/.local/bin/nvim
+```
+
+备份文件保留在 `~/.config/nvim.backup.*`
+
 ## 🌍 环境特定功能
 
 ### 远程剪贴板 (SSH/tmux)

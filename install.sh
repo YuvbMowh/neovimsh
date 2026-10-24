@@ -5,7 +5,7 @@
 set -eo pipefail
 
 # 配置
-NVIM_VERSION="0.12.6"  # Neovim 版本
+NVIM_VERSION="0.11.7"  # Neovim 版本
 REPO_URL="https://github.com/YuvbMowh/neovimsh.git"  # 配置仓库
 NVIM_CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
 BACKUP_DIR="$HOME/.config/nvim.backup.$(date +%Y%m%d-%H%M%S)"
@@ -140,7 +140,29 @@ check_neovim() {
 install_neovim() {
     log_info "开始安装 Neovim $NVIM_VERSION..."
     
-    local download_url="https://github.com/neovim/neovim/releases/download/v${NVIM_VERSION}/nvim-${NVIM_ARCH}.tar.gz"
+    # 根据版本确定文件名格式
+    # v0.11+ 使用 nvim-linux-x86_64.tar.gz
+    # v0.10 及更早使用 nvim-linux64.tar.gz
+    local download_filename
+    if [[ "$NVIM_ARCH" == "linux64" ]]; then
+        # 检查版本号是否 >= 0.11
+        local major minor
+        IFS='.' read -r major minor _ <<< "$NVIM_VERSION"
+        if [[ $major -eq 0 && $minor -ge 11 ]] || [[ $major -gt 0 ]]; then
+            download_filename="nvim-linux-x86_64.tar.gz"
+        else
+            download_filename="nvim-${NVIM_ARCH}.tar.gz"
+        fi
+    else
+        # ARM64
+        if [[ "$NVIM_ARCH" == "linux-arm64" ]]; then
+            download_filename="nvim-linux-arm64.tar.gz"
+        else
+            download_filename="nvim-${NVIM_ARCH}.tar.gz"
+        fi
+    fi
+    
+    local download_url="https://github.com/neovim/neovim/releases/download/v${NVIM_VERSION}/${download_filename}"
     local temp_dir
     temp_dir=$(mktemp -d)
     
@@ -158,19 +180,29 @@ install_neovim() {
     mkdir -p "$HOME/.local/bin"
     mkdir -p "$HOME/.local/share/nvim"
     
+    # 查找解压后的目录（可能是 nvim-linux64 或 nvim-linux-x86_64）
+    local nvim_dir
+    nvim_dir=$(find "$temp_dir" -maxdepth 1 -type d -name "nvim-*" | head -1)
+    
+    if [[ -z "$nvim_dir" ]]; then
+        log_error "无法找到解压后的 Neovim 目录"
+        rm -rf "$temp_dir"
+        exit 1
+    fi
+    
     # 复制二进制文件
-    cp -f "$temp_dir/nvim-${NVIM_ARCH}/bin/nvim" "$HOME/.local/bin/"
+    cp -f "$nvim_dir/bin/nvim" "$HOME/.local/bin/"
     chmod +x "$HOME/.local/bin/nvim"
     
     # 复制运行时文件
-    if [[ -d "$temp_dir/nvim-${NVIM_ARCH}/share/nvim" ]]; then
-        cp -rf "$temp_dir/nvim-${NVIM_ARCH}/share/nvim/runtime" "$HOME/.local/share/nvim/"
+    if [[ -d "$nvim_dir/share/nvim" ]]; then
+        cp -rf "$nvim_dir/share/nvim/runtime" "$HOME/.local/share/nvim/"
     fi
     
     # 复制库文件（如果有）
-    if [[ -d "$temp_dir/nvim-${NVIM_ARCH}/lib" ]]; then
+    if [[ -d "$nvim_dir/lib" ]]; then
         mkdir -p "$HOME/.local/lib"
-        cp -rf "$temp_dir/nvim-${NVIM_ARCH}/lib/"* "$HOME/.local/lib/"
+        cp -rf "$nvim_dir/lib/"* "$HOME/.local/lib/"
     fi
     
     rm -rf "$temp_dir"

@@ -20,15 +20,15 @@
 2. 运行一键安装脚本：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/install.sh -o /tmp/install-lazyvim.sh
+curl -fsSL https://raw.githubusercontent.com/YuvbMowh/neovimsh/master/install.sh -o /tmp/install-lazyvim.sh
 bash /tmp/install-lazyvim.sh
 ```
 
 或者克隆仓库后本地安装：
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
-cd YOUR_REPO
+git clone https://github.com/YuvbMowh/neovimsh.git
+cd neovimsh
 ./install.sh
 ```
 

@@ -1,0 +1,25 @@
+# Neovim runtime files
+*.log
+.tests
+debug
+.repro
+data/
+
+# Backup and temporary files
+*.bak
+*.bak.*
+*.tmp
+*.swp
+*.swo
+*~
+
+# LeetCode (double insurance)
+*leetcode*
+*LeetCode*
+
+# System and personal files
+.DS_Store
+*.local
+
+# Neovim state and cache (should not be in config)
+lazy-lock.json.bak

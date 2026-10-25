@@ -1,11 +1,5 @@
 return {
-	-- Load all theme plugins but don't apply them
-	-- This ensures all colorschemes are available for hot-reloading
-	--
-	-- Omarchy 4 generates most theme specs from default/themed/neovim.lua.tpl on
-	-- top of aether, so the single-theme plugins below (ethereal, vantablack,
-	-- white, monokai-pro, miasma) are only reached by Omarchy 3.8, which ships a
-	-- neovim.lua per theme. Keep them until 3.8 is out of support.
+	-- Optional colorschemes. Downloaded during install and loaded on demand.
 	{
 		"ribru17/bamboo.nvim",
 		lazy = true,
@@ -77,7 +71,7 @@ return {
 		priority = 1000,
 	},
 	{
-		"gthelding/monokai-pro.nvim",
+		"loctvl842/monokai-pro.nvim",
 		lazy = true,
 		priority = 1000,
 	},

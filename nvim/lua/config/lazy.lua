@@ -8,8 +8,18 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
       { out, "WarningMsg" },
       { "\nPress any key to exit..." },
     }, true, {})
-    vim.fn.getchar()
+    if #vim.api.nvim_list_uis() > 0 then
+      vim.fn.getchar()
+    end
     os.exit(1)
+  end
+  -- Bootstrap the manager at the same revision as the rest of the deployment.
+  local lockfile = vim.fn.stdpath("config") .. "/lazy-lock.json"
+  local lock = vim.json.decode(table.concat(vim.fn.readfile(lockfile), "\n"))
+  local revision = assert(lock["lazy.nvim"] and lock["lazy.nvim"].commit, "Missing lazy.nvim lock entry")
+  local checkout = vim.fn.system({ "git", "-C", lazypath, "checkout", "--detach", revision })
+  if vim.v.shell_error ~= 0 then
+    error("Failed to restore lazy.nvim bootstrap revision: " .. checkout)
   end
 end
 vim.opt.rtp:prepend(lazypath)

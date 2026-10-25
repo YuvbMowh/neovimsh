@@ -1,178 +1,23 @@
-# 安全说明
+# 安全与数据边界
 
-## 隐私保护
+本仓库发布 Neovim 配置和部署脚本。配置中不应保存 API 密钥、Cookie、密码或数据库连接凭据；使用环境变量或未提交的个人配置。`.gitignore` 只是辅助措施，不是凭据检测工具。
 
-此配置已经过严格的安全审计，确保不包含任何敏感信息。
+## 安装
 
-### 已排除的内容
+- 以普通用户运行脚本，apt 步骤单独使用 sudo；root 容器安装到 root 的 HOME。
+- 新下载的 Neovim 文件使用 GitHub Release API 返回的 SHA-256 digest 校验。这能检测文件不一致，不能防御上游仓库或 GitHub 账号被入侵。
+- 配置替换前备份；失败时恢复配置。系统软件包、二进制及共享插件数据不属于配置回滚范围。
+- 插件按照锁文件恢复，但依然会执行插件和构建代码；Mason、Treesitter 和语言工具链有各自的下载与版本管理机制。
+- 配置来源必须可信；不要运行来源不明的 `REPO_URL`、分支或配置文件。
 
-#### 1. LeetCode 插件 (高风险)
+## 卸载
 
-**原因**: 包含账号认证信息和 Cookie
+管理标记用于区分本安装器部署的配置，不是防篡改机制。卸载默认保留插件、Mason、状态和缓存；`--purge` 会删除当前 XDG 路径下全部 Neovim 数据，包括其他配置之前写入的数据。备份及部署日志始终保留。
 
-- ❌ `lua/plugins/leetcode.lua` - 插件配置文件
-- ❌ `lazy-lock.json` 中的 `leetcode.nvim` 条目
-- ❌ LeetCode 解题记录（存储在 `~/test/leetcode/solutions`，不在配置范围内）
+旧版本脚本安装的文件不会自动取得管理标记；请审查后手动清理。不要为绕过保护给来源不明的目录添加管理标记。
 
-**影响**: 无法使用 LeetCode 插件，但不影响其他功能。
+## 隐私
 
-#### 2. 系统特定路径
+已移除 LeetCode 配置和 Omarchy 主题路径依赖。SSH/tmux 剪贴板会向终端发送复制内容；不需要时可按照 README 禁用。部署日志、LSP 日志和运行时数据库连接可能包含项目路径、错误信息及其他工作数据，不应直接公开。
 
-**原因**: 包含用户名和系统绝对路径
-
-- ❌ `theme.lua` 符号链接（原指向 `/home/reskdl/.local/state/omarchy/current/theme/neovim.lua`）
-- ✅ 已替换为独立的主题配置文件，使用 `tokyonight` 作为默认主题
-
-#### 3. 备份文件
-
-**原因**: 可能包含临时测试数据
-
-- ❌ 所有 `.bak` 文件
-- ❌ 所有 `.bak.*` 文件
-
-### 安全扫描结果
-
-✅ **无硬编码的敏感信息**
-
-- 未发现 API Keys
-- 未发现 Access Tokens
-- 未发现密码或凭据
-- 未发现个人邮箱
-- 未发现真实姓名
-
-✅ **环境检测良好**
-
-以下配置包含环境检测逻辑，在不支持的环境中自动禁用：
-
-- `remote_clipboard.lua`: 仅在 SSH/tmux/herdr 环境中启用
-- `autocmds.lua`: fcitx5 仅在 VSCode 且工具存在时启用
-- 所有路径使用 `stdpath` 动态获取，无硬编码
-
-## 公开发布指南
-
-### 可以安全公开的内容
-
-✅ **完全安全**
-
-此配置可以：
-- 推送到 GitHub 公开仓库
-- 分享给他人使用
-- 作为博客示例展示
-
-所有文件都经过审计，不包含个人敏感信息。
-
-### .gitignore 保护
-
-`.gitignore` 已配置排除：
-
-```gitignore
-# 运行时文件
-*.log
-data/
-
-# 备份文件
-*.bak
-*.bak.*
-*.tmp
-*.swp
-
-# LeetCode（双重保险）
-*leetcode*
-*LeetCode*
-
-# 系统文件
-.DS_Store
-*.local
-```
-
-### 推荐做法
-
-即使配置已安全，仍建议：
-
-1. **审查后再使用**: 浏览所有 Lua 文件，确保符合你的需求
-2. **不添加敏感信息**: 
-   - 不要在配置中硬编码密码、Token
-   - 使用环境变量存储敏感数据
-3. **定期更新**: 保持插件和 Neovim 版本更新
-4. **备份重要数据**: 定期备份配置和插件锁定文件
-
-## 功能需要重新配置
-
-### 在 Codespaces 中首次使用
-
-以下功能在新环境中需要重新设置（不在配置文件中）：
-
-#### Git 配置
-
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "your.email@example.com"
-```
-
-#### Mason LSP 安装
-
-首次打开文件时，Mason 会自动安装 LSP 服务器，无需手动配置。
-
-如需手动安装：
-
-```vim
-:Mason
-```
-
-然后按 `i` 安装需要的 LSP 服务器。
-
-## 环境变量
-
-此配置不依赖任何环境变量，但如果你需要自定义：
-
-### 可选的环境变量
-
-- `XDG_CONFIG_HOME`: Neovim 配置目录（默认：`~/.config`）
-- `XDG_DATA_HOME`: Neovim 数据目录（默认：`~/.local/share`）
-- `XDG_STATE_HOME`: Neovim 状态目录（默认：`~/.local/state`）
-- `XDG_CACHE_HOME`: Neovim 缓存目录（默认：`~/.cache`）
-
-### 自定义远程剪贴板行为
-
-如果你需要禁用远程剪贴板功能：
-
-在 `~/.config/nvim/lua/config/options.lua` 中添加：
-
-```lua
-vim.g.omarchy_remote_clipboard_osc52 = false
-vim.g.omarchy_remote_clipboard_sync = false
-```
-
-## 数据存储位置
-
-### 配置文件
-
-- `~/.config/nvim/` - 用户配置（此仓库）
-
-### 运行时数据
-
-- `~/.local/share/nvim/` - 插件安装、Mason LSP 服务器
-- `~/.local/state/nvim/` - 会话、shada、日志
-- `~/.cache/nvim/` - 缓存文件
-
-这些目录由 Neovim 自动管理，不包含在配置仓库中。
-
-## 报告安全问题
-
-如果你在配置中发现任何潜在的安全问题，请：
-
-1. **不要**在公开 Issue 中披露
-2. 通过私有渠道联系维护者
-
-## 审计记录
-
-- **审计日期**: 2026-10-24
-- **审计范围**: 所有配置文件
-- **审计结果**: 通过
-- **风险等级**: 低风险
-
-详细审计报告：[SECURITY_AUDIT.md](../SECURITY_AUDIT.md)
-
----
-
-**最后更新**: 2026-10-24
+报告问题时先清理凭据和私人项目内容。先前的审计只反映当时检查范围，不能作为未来文件、第三方插件或运行环境的安全保证。

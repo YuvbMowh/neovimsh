@@ -54,6 +54,14 @@ local groups = {
 	"NotifyDEBUGBorder",
 }
 
-for _, name in ipairs(groups) do
-	make_transparent(name)
+local function apply_transparency()
+  for _, name in ipairs(groups) do
+    make_transparent(name)
+  end
 end
+
+vim.api.nvim_create_autocmd("ColorScheme", {
+  group = vim.api.nvim_create_augroup("codespaces_transparency", { clear = true }),
+  callback = apply_transparency,
+})
+apply_transparency()

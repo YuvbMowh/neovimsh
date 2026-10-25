@@ -12,6 +12,7 @@ MANAGED_ROOT="$HOME/.local/opt/nvim-codespaces"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
 FORCE_INSTALL="${FORCE_INSTALL:-false}"
 SKIP_TOOLS=false
+SHELL_ONLY=false
 NVIM_BIN=""
 BACKUP_DIR=""
 STAGE_DIR=""
@@ -211,18 +212,62 @@ health_check() {
     log_info "启动检查通过；语言工具请在 Neovim 中运行 :checkhealth 检查。"
 }
 
+configure_shell() {
+    # Keep a single managed block and preserve other Bash settings and symlinks.
+    python3 - "$HOME/.bashrc" <<'PY'
+import os
+from pathlib import Path
+import re
+import stat
+import sys
+import tempfile
+
+path = Path(sys.argv[1]).resolve()
+existing = path.read_text() if path.exists() else ''
+block = '''# >>> lazyvim-codespaces >>>
+case ":$PATH:" in
+    *":$HOME/.local/bin:"*) ;;
+    *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+alias n='nvim'
+# Explicitly enable filename/directory completion for the short command.
+complete -o filenames -o bashdefault -o default -f n
+# <<< lazyvim-codespaces <<<'''
+updated = re.sub(r'^# >>> lazyvim-codespaces >>>\n.*?^# <<< lazyvim-codespaces <<<\n?', '',
+                 existing, flags=re.MULTILINE | re.DOTALL)
+updated = updated.rstrip('\n') + '\n\n' + block + '\n'
+path.parent.mkdir(parents=True, exist_ok=True)
+mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o644
+with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, delete=False) as temp:
+    temporary = Path(temp.name)
+    try:
+        temp.write(updated)
+        temp.flush()
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+PY
+    log_info "已配置 Bash 快捷命令 n=nvim 和文件/目录补全。当前终端请执行：source ~/.bashrc"
+}
+
 main() {
     while (($#)); do
         case "$1" in
             --force) FORCE_INSTALL=true ;;
             --skip-tools) SKIP_TOOLS=true ;;
+            --shell-only) SHELL_ONLY=true ;;
             --help|-h)
-                printf '用法：%s [--force] [--skip-tools]\n--force 自动备份并替换配置\n--skip-tools 不运行 apt（基础依赖仍须存在）\n' "$0"
+                printf '用法：%s [--force] [--skip-tools] [--shell-only]\n--force 自动备份并替换配置\n--skip-tools 不运行 apt（基础依赖仍须存在）\n--shell-only 只配置 Bash 快捷命令和补全，不重装 Neovim 或插件\n' "$0"
                 return ;;
             *) die "未知选项：$1" ;;
         esac
         shift
     done
+    if [[ "$SHELL_ONLY" == true ]]; then
+        configure_shell
+        return
+    fi
     trap cleanup EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
@@ -234,10 +279,11 @@ main() {
     install_config
     install_plugins
     health_check
+    configure_shell
     COMMITTED=true
     log_info "安装完成：$NVIM_CONFIG_DIR"
     log_info "启动命令：$NVIM_BIN；日志：$LOG_DIR"
-    log_info '若 nvim 不在 PATH，请在 shell 配置中添加：export PATH="$HOME/.local/bin:$PATH"'
+    log_info '重新打开 Bash 或执行 source ~/.bashrc 后，可使用 n 及其文件/目录补全。'
 }
 
 if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then

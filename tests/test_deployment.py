@@ -4,6 +4,9 @@ import hashlib
 import io
 import json
 import tarfile
+import pty
+import select
+import time
 from pathlib import Path
 import subprocess
 import tempfile
@@ -186,6 +189,66 @@ cp -- "$src" "$dest"
         result = self.run_install('NVIM_ARCH=x86_64; install_neovim')
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse((self.home / '.local/bin/nvim').exists())
+
+    def test_shell_setup_restores_alias_and_file_completion_without_duplicates(self):
+        rc = self.home / '.bashrc'
+        rc.write_text('# personal settings\nexport PERSONAL_SETTING=keep\n')
+        result = self.run_install('configure_shell; configure_shell')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('export PERSONAL_SETTING=keep', rc.read_text())
+        self.assertEqual(rc.read_text().count('# >>> lazyvim-codespaces >>>'), 1)
+        shell = subprocess.run(['bash', '--noprofile', '--rcfile', str(rc), '-ic',
+                                'alias n; complete -p n; printf "%s" "$PERSONAL_SETTING"'],
+                               env=self.env, capture_output=True, text=True)
+        self.assertEqual(shell.returncode, 0, shell.stderr)
+        self.assertIn("alias n='nvim'", shell.stdout)
+        self.assertRegex(shell.stdout, r'complete .*-(?:A file|f).* n')
+        self.assertTrue(shell.stdout.endswith('keep'))
+
+    def test_shell_only_does_not_replace_neovim_config(self):
+        config = self.home / 'config/nvim'
+        config.mkdir(parents=True)
+        (config / 'personal.lua').write_text('keep')
+        result = subprocess.run(['bash', str(ROOT / 'install.sh'), '--shell-only'],
+                                env=self.env, capture_output=True, text=True, timeout=20)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((config / 'personal.lua').read_text(), 'keep')
+        self.assertIn("alias n='nvim'", (self.home / '.bashrc').read_text())
+
+    def test_alias_tab_completion_opens_file_with_spaces(self):
+        bindir = self.home / '.local/bin'
+        bindir.mkdir(parents=True)
+        binary = bindir / 'nvim'
+        binary.write_text('#!/bin/sh\nprintf "ARG=<%s>\\n" "$@"\n')
+        binary.chmod(0o755)
+        (self.home / 'unique document.txt').touch()
+        result = self.run_install('configure_shell')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        master, slave = pty.openpty()
+        shell = subprocess.Popen(['bash', '--noprofile', '--rcfile',
+                                  str(self.home / '.bashrc'), '-i'],
+                                 env={**self.env, 'PS1': 'READY> ', 'TERM': 'dumb'},
+                                 cwd=self.home, stdin=slave, stdout=slave, stderr=slave)
+        os.close(slave)
+        received = b''
+        try:
+            def wait_for(needle):
+                nonlocal received
+                deadline = time.monotonic() + 5
+                while needle not in received and time.monotonic() < deadline:
+                    if select.select([master], [], [], 0.1)[0]:
+                        received += os.read(master, 8192)
+                self.assertIn(needle, received)
+            wait_for(b'READY> ')
+            os.write(master, b'n unique\t\n')
+            wait_for(b'ARG=<unique document.txt>')
+            os.write(master, b'exit\n')
+            shell.wait(timeout=5)
+        finally:
+            if shell.poll() is None:
+                shell.kill()
+                shell.wait()
+            os.close(master)
 
 
 if __name__ == '__main__':

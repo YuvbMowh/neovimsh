@@ -42,13 +42,25 @@ bash /tmp/lazyvim-install.sh --force
 - `--force` 自动确认配置替换，**仍然保留备份**。不带该选项的非交互替换会失败，避免部署卡在输入提示上。
 - 插件按 `lazy-lock.json` 安装和恢复，不执行 `Lazy sync` 升级。插件任务错误或启动错误会使脚本以非零状态退出。
 - 部署失败或收到 INT/TERM 时撤回新配置并恢复旧配置。已安装的软件包、Neovim 发行包、插件及 Mason 数据不会自动回滚；SIGKILL、断电也无法执行回滚。
-- 不修改 `.bashrc` 或其他 shell 配置。终端找不到 `nvim` 时，在你使用的 shell 配置中添加：
+- 自动在 `~/.bashrc` 中维护一段配置，设置 `~/.local/bin` 的 PATH、`alias n='nvim'`，并为 `n` 启用文件和目录 Tab 补全。保留其他 Bash 配置，重复安装不会重复追加。
+
+安装后在当前 Bash 中执行：
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
-# 可选快捷别名
-alias n='nvim'
+source ~/.bashrc
+n 文件路径
+# 输入 n 后按 Tab 可补全文件和目录
 ```
+
+已经安装完成、只需恢复快捷命令和补全时，无需重新部署 Neovim：
+
+```bash
+git pull --ff-only
+./install.sh --shell-only
+source ~/.bashrc
+```
+
+自动配置适用于 Bash。使用其他 shell 时，请在对应 shell 的配置中设置别名和补全。卸载默认保留这段 Bash 设置；不再需要时可删除 `.bashrc` 中 `lazyvim-codespaces` 标记之间的配置。
 
 `--skip-tools` 跳过 apt；`curl`、`tar`、`git`、`python3`、`sha256sum` 仍须提前存在。下载需要访问 GitHub API 和 Releases；插件还需要访问各自的仓库。
 
@@ -149,7 +161,7 @@ bash -n install.sh
 bash -n uninstall.sh
 ```
 
-测试覆盖首次安装、XDG 备份、PATH 中已有 Neovim、失败退出及配置回滚、非交互覆盖、卸载保护和显式数据清理。测试不代替在目标架构上的完整联网安装验证。
+测试覆盖首次安装、XDG 备份、Bash 别名和补全、PATH 中已有 Neovim、失败退出及配置回滚、非交互覆盖、卸载保护和显式数据清理。测试不代替在目标架构上的完整联网安装验证。
 
 ## 安全说明
 
